@@ -57,7 +57,7 @@ def color_move(v):
 styled = view.style.format(fmt, na_rep="N/A").map(
     color_move, subset=["Day %", "Upside %", "NTM Rev Growth %"]
 )
-st.dataframe(styled, use_container_width=True, height=36 * (len(view) + 1) + 3)
+st.dataframe(styled, width="stretch", height=36 * (len(view) + 1) + 3)
 
 st.caption(
     "**Methodology.** LTM P/E = price / trailing EPS (actuals). NTM P/E = price / time-weighted blend of "
@@ -82,7 +82,7 @@ with c1:
         if pd.notna(row.get("52W Low")):
             fig.add_hline(y=row["52W Low"], line_dash="dot", annotation_text="52W low")
         fig.update_layout(title=f"{sel} - 1Y price", height=380, margin=dict(l=0, r=0, t=40, b=0))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
 with c2:
     st.subheader("Headlines")
