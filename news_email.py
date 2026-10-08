@@ -23,7 +23,7 @@ import data
 
 ET = ZoneInfo("America/New_York")
 SLOTS = [(time(8, 0), "Premarket"), (time(12, 0), "Midday"), (time(15, 30), "Pre-close")]
-GRACE = timedelta(minutes=45)  # GitHub cron can start late; send if within this window after a slot
+GRACE = timedelta(minutes=55)  # GitHub cron can start late; send if within this window after a slot
 
 
 def hm(dt: datetime) -> str:
