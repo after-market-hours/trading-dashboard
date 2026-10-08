@@ -25,6 +25,11 @@ No test suite or linter is configured.
 - `app.py` renders a metrics table plus a per-ticker detail view; it only calls `data.py` (cached 15 min).
 - `news_email.py` builds and sends the HTML digest. `.github/workflows/news.yml` runs it on cron.
 
+## Deployment
+
+- Dashboard: Streamlit Community Cloud, deployed from `after-market-hours/trading-dashboard` (private), branch `main`, file `app.py`. It redeploys on push to `main`. The app is set up through the Streamlit web UI, not the repo; Streamlit's GitHub account must be `after-market-hours` with private-repo access granted.
+- Digest: GitHub Actions (`news.yml`), Mon-Fri at 8:00, 12:00 and 15:30 ET, emailed to jimmy.yh.jiang@gmail.com via Gmail SMTP. A forced test run on 2026-10-08 sent successfully.
+
 ## Non-obvious details
 
 - **NTM metrics are derived.** NTM EPS/revenue = time-weighted blend of Yahoo's FY0 and FY+1 consensus (weight from `nextFiscalYearEnd`). Yahoo has no EBITDA consensus, so NTM EBITDA = LTM EBITDA scaled by consensus NTM revenue growth (constant margin). This is an approximation and is labelled as such in the UI.
