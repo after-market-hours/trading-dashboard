@@ -2,11 +2,9 @@ name: News digest
 
 on:
   schedule:
-    # Targets: 8:00, 12:00, 15:30 ET, Mon-Fri. GitHub cron is UTC and ignores DST, so each slot is
-    # listed for both EDT and EST; news_email.py only sends when the ET time is inside a slot window.
-    - cron: "3 12,13 * * 1-5"    # 8:00 ET
-    - cron: "3 16,17 * * 1-5"    # 12:00 ET
-    - cron: "33 19,20 * * 1-5"   # 15:30 ET
+    # Target: 7:00 ET, Mon-Fri. GitHub cron is UTC and ignores DST, so list both EDT and EST;
+    # news_email.py only sends when the ET time is inside the 7:00 window.
+    - cron: "3 11,12 * * 1-5"    # 7:00 ET
   workflow_dispatch:
     inputs:
       force:

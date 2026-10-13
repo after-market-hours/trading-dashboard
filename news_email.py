@@ -1,7 +1,7 @@
-"""Send the scheduled news digest (8:00, 12:00, 15:30 ET) for the tickers in tickers.txt.
+"""Send the daily 7:00 ET news digest (headlines since the prior market close) for the tickers in tickers.txt.
 
 Usage:
-  python news_email.py              # send only if now is within a slot window (used by cron)
+  python news_email.py              # send only if now is within the 7:00 ET window (used by cron)
   python news_email.py --force      # send now, regardless of time
   python news_email.py --dry-run    # build the email, write digest_preview.html, don't send
 
@@ -22,8 +22,9 @@ from zoneinfo import ZoneInfo
 import data
 
 ET = ZoneInfo("America/New_York")
-SLOTS = [(time(8, 0), "Premarket"), (time(12, 0), "Midday"), (time(15, 30), "Pre-close")]
-GRACE = timedelta(minutes=55)  # GitHub cron can start late; send if within this window after a slot
+SEND_AT = time(7, 0)
+CLOSE = time(16, 0)  # market close; the digest covers everything since the previous weekday's close
+GRACE = timedelta(minutes=55)  # GitHub cron can start late; send if within this window after SEND_AT
 
 
 def hm(dt: datetime) -> str:
@@ -31,33 +32,27 @@ def hm(dt: datetime) -> str:
     return f"{dt.hour % 12 or 12}:{dt.minute:02d} {'AM' if dt.hour < 12 else 'PM'}"
 
 
-def current_slot(now: datetime):
-    """Return (slot_start, label) if `now` is within GRACE after a slot on a weekday, else None."""
+def in_window(now: datetime) -> bool:
+    """True if `now` is within GRACE after SEND_AT on a weekday."""
     if now.weekday() >= 5:
-        return None
-    for t, label in SLOTS:
-        start = datetime.combine(now.date(), t, tzinfo=ET)
-        if start <= now < start + GRACE:
-            return start, label
-    return None
+        return False
+    start = datetime.combine(now.date(), SEND_AT, tzinfo=ET)
+    return start <= now < start + GRACE
 
 
-def previous_slot(start: datetime) -> datetime:
-    """Start of the slot before `start`, skipping weekends."""
-    idx = [t for t, _ in SLOTS].index(start.timetz().replace(tzinfo=None))
-    if idx > 0:
-        return datetime.combine(start.date(), SLOTS[idx - 1][0], tzinfo=ET)
+def previous_close(start: datetime) -> datetime:
+    """Previous weekday's 4:00 PM ET close (Monday looks back to Friday)."""
     d = start.date() - timedelta(days=1)
     while d.weekday() >= 5:
         d -= timedelta(days=1)
-    return datetime.combine(d, SLOTS[-1][0], tzinfo=ET)
+    return datetime.combine(d, CLOSE, tzinfo=ET)
 
 
-def build_email(slot_start: datetime, label: str, since: datetime) -> tuple[str, str]:
-    subject = f"[{label} {hm(slot_start)} ET] Equities news - {slot_start:%b %d}"
+def build_email(slot_start: datetime, since: datetime) -> tuple[str, str]:
+    subject = f"[Morning] Equities news - {slot_start:%a %b %d}"
     parts = [
-        f"<h2>{html.escape(label)} news - {slot_start:%a %b %d}, {hm(slot_start)} ET</h2>",
-        f"<p style='color:#666'>Headlines published since {since:%a} {hm(since)} ET. Source: Yahoo Finance.</p>",
+        f"<h2>Morning news - {slot_start:%a %b %d}, {hm(slot_start)} ET</h2>",
+        f"<p style='color:#666'>Headlines published since the {since:%a %b %d} {hm(since)} ET close. Source: Yahoo Finance.</p>",
     ]
     for tk in data.load_tickers():
         parts.append(f"<h3 style='margin-bottom:2px'>{tk}</h3>")
@@ -115,17 +110,12 @@ def main() -> int:
     args = ap.parse_args()
 
     now = datetime.now(ET)
-    slot = current_slot(now)
-    if slot is None:
-        if not (args.force or args.dry_run):
-            print(f"{now:%a %H:%M} ET is outside every slot window; skipping.")
-            return 0
-        # Forced run: use the most recent slot of today, or the next-closest for labelling.
-        label_t, label = min(SLOTS, key=lambda s: abs(datetime.combine(now.date(), s[0], tzinfo=ET) - now))
-        slot = (datetime.combine(now.date(), label_t, tzinfo=ET), label)
-    start, label = slot
-    since = previous_slot(start)
-    subject, body = build_email(start, label, since)
+    if not (args.force or args.dry_run) and not in_window(now):
+        print(f"{now:%a %H:%M} ET is outside the 7:00 ET window; skipping.")
+        return 0
+    start = datetime.combine(now.date(), SEND_AT, tzinfo=ET)
+    since = previous_close(start)
+    subject, body = build_email(start, since)
     if args.dry_run:
         with open("digest_preview.html", "w", encoding="utf-8") as f:
             f.write(body)
